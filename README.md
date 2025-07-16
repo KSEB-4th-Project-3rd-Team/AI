@@ -2,7 +2,7 @@
 
 # 📦 MAPF-CBS 최단 경로 알고리즘
 
-CBS(Conflict-Based Search)는 여러 에이전트(로봇, AGV, AMR 등)가 하나의 지도 위에서 **충돌 없이 각자의 목적지까지 최단경로**로 이동할 수 있도록 경로를 찾는 대표적인 경로 최적화(MAPF, Multi-Agent Path Finding) 알고리즘입니다.
+CBS(Conflict-Based Search)는 여러 에이전트(로봇/ AGV/ AMR 등)가 하나의 지도 위에서 **충돌 없이 각자의 목적지까지 최단경로**로 이동할 수 있도록 경로를 찾는 대표적인 경로 최적화(MAPF, Multi-Agent Path Finding) 알고리즘
 
 ---
 
