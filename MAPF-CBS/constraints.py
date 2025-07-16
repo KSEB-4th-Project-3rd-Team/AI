@@ -1,4 +1,7 @@
-def is_constrained, build_constraint_table, check_constraints
+# def is_constrained, build_constraint_table, constraint_violated, future_constraint_violated,
+# check_constraints
+# 피킹존 5초 이상 머무르기 금지' 같은 경우는 조건을 추가해야 함
+# constraint list 여러번 호출함 constraint table을 defaultdict로 바꾸기
 
 def build_constraint_table(self, agent):
     constraint_table = dict()
@@ -22,7 +25,7 @@ def build_constraint_table(self, agent):
         elif not constraint['positive'] and constraint['agent'] == agent:
             t_constraint.append(constraint)
             constraint_table[timestep] = t_constraint
-        # 타 agent의 positive 제약조건 → 현 agent에게 negative 제약조건으로 추가
+        # 타 agent의 positive 제약조건 -> 현 agent에게 negative 제약조건으로 추가
         elif constraint['positive']:
             neg_constraint = copy.deepcopy(constraint)
             neg_constraint['agent'] = agent
