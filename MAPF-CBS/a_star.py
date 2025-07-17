@@ -2,6 +2,8 @@ import heapq
 from itertools import product
 import copy
 import collections
+import time as timer
+import numpy as np
 
 # 좌표와 방향을 받아 이동한 위치 반환 (0:상, 1:우, 2:하, 3:좌, 4:제자리)
 def move(loc, dir):
