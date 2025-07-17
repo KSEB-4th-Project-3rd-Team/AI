@@ -2,6 +2,7 @@
 # check_constraints
 # 피킹존 5초 이상 머무르기 금지' 같은 경우는 조건을 추가해야 함
 # constraint list 여러번 호출함 constraint table을 defaultdict로 바꾸기
+import copy
 
 def build_constraint_table(self, agent):
     constraint_table = dict()
@@ -29,7 +30,7 @@ def build_constraint_table(self, agent):
         elif constraint['positive']:
             neg_constraint = copy.deepcopy(constraint)
             neg_constraint['agent'] = agent
-            # 에지(이동) 제약인 경우, 방향 전환
+            # 이동 제약인 경우, 방향 전환
             if len(constraint['loc']) == 2:
                 prev_loc = constraint['loc'][1]
                 curr_loc = constraint['loc'][0]
@@ -56,7 +57,7 @@ def constraint_violated(self, curr_loc, next_loc, timestep, c_table_agent, agent
                 # negative: 특정 위치로 가면 안 됨
                 elif not constraint['positive'] and next_loc == constraint['loc'][0]:
                     return constraint
-            # 에지(이동) 제약
+            # 이동 제약
             else:
                 # positive: 반드시 특정 경로로 이동해야 함
                 if constraint['positive'] and constraint['loc'] != [curr_loc, next_loc]:
