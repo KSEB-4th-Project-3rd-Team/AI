@@ -146,49 +146,8 @@ def get_path(goal_node, meta_agent):
     return path
 
 # -------------- 5. 제약조건 위반 -------------------
-
-# 해당 시간에 주어진 위치/이동이 외부 제약에 걸리는지 체크
-def is_constrained(curr_loc, next_loc, timestep, constraint_table, agent):
-    if timestep not in constraint_table:
-        return False
-    for constraint in constraint_table[timestep]:
-        if agent == constraint['agent'] and not constraint['positive']:
-            # 위치 제약
-            if len(constraint['loc']) == 1:
-                if next_loc == constraint['loc'][0]:
-                    return True
-            # 이동 제약(엣지)
-            else:
-                if constraint['loc'] == [curr_loc, next_loc]:
-                    return True
-    return False
-
-# 필수 제약을 어기는지 체크
-def violates_pos_constraint(curr_loc, next_loc, timestep, constraint_table, agent, meta_agent):
-    if timestep not in constraint_table:
-        return False
-    for constraint in constraint_table[timestep]:
-        if agent == constraint['agent'] and constraint['positive']:
-            if len(constraint['loc']) == 1:
-                if next_loc != constraint['loc'][0]:
-                    return True
-            else:
-                if constraint['loc'] != [curr_loc, next_loc]:
-                    return True
-    return False
-
-# 미래에 해당 위치에 외부 제약이 걸릴 예정인지 체크
-def future_constraint_exists(agent, meta_agent, agent_loc, timestep, constraint_table):
-    for t in constraint_table:
-        if t > timestep:
-            for constraint in constraint_table[t]:
-                if constraint['loc'][-1] == agent_loc:
-                    if agent == constraint['agent'] and not constraint['positive']:
-                        return True
-                    if agent != constraint['agent'] and constraint['positive']:
-                        return True
-    return False
-
+# constraints.py
+# from pathfinding.constraints import is_constrained, violates_pos_constraint, future_constraint_exists
 # -------------- 6. open list(우선순위큐) 관련 함수 -------------------
 
 # open_list에 노드 추가 (우선순위큐)
