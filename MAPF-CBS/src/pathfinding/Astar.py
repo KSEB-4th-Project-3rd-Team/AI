@@ -14,7 +14,12 @@ import copy
 import collections
 import time as timer
 import numpy as np
-
+from pathfinding.constraints import (
+    is_constrained,
+    violates_pos_constraint,
+    future_constraint_exists,
+    build_constraint_table
+)
 # -------------- 1. 위치 이동-------------------
 # 1. 위치 이동 함수 (상하좌우+정지)
 def move(loc, dir):

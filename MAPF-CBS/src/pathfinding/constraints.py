@@ -1,7 +1,6 @@
-import copy
-import collections
-from pathfinding.Astar import a_star_multi, manhattan_heuristics
-
+# import copy
+# import collections
+# from pathfinding.Astar import a_star_multi, manhattan_heuristics
 # from constraints import (
 #     build_constraint_table, 
 #     is_constrained, 
@@ -10,26 +9,26 @@ from pathfinding.Astar import a_star_multi, manhattan_heuristics
 #     make_constraints
 # )
 
-# 1. 맵, 에이전트 위치 지정
-my_map = ...  # 2D array
-start_locs = [(2,2), (4,5)]
-goal_locs = [(10,10), (7,3)]
-meta_agent = [0, 1]
+# 맵, 에이전트 위치 지정
+# my_map = ...  # 2D array
+# start_locs = [(2,2), (4,5)]
+# goal_locs = [(10,10), (7,3)]
+# meta_agent = [0, 1]
 
 # 다중 휴리스틱 세팅 
-goals_dict = {0: goal_locs[0], 1: goal_locs[1]}
-h_values = multi_manhattan_heuristics(my_map, goals_dict)
+# goals_dict = {0: goal_locs[0], 1: goal_locs[1]}
+# h_values = multi_manhattan_heuristics(my_map, goals_dict)
 
 # 제약조건 리스트 구조를 에이전트/좌표/시간/positive로 맞춰둠
-constraints = [
-    {"agent": 0, "loc": [(y, x)], "timestep": t, "positive": False},
-    # 필요시 엣지 제약도 추가 가능
-    {"agent": 1, "loc": [(y1, x1), (y2, x2)], "timestep": t, "positive": False}
-]
+# constraints = [
+#     {"agent": 0, "loc": [(y, x)], "timestep": t, "positive": False},
+#     # 필요시 엣지 제약도 추가 가능
+#     {"agent": 1, "loc": [(y1, x1), (y2, x2)], "timestep": t, "positive": False}
+# ]
 
-# 경로 탐색
-paths = a_star_multi(my_map, start_locs, goal_locs, h_values, meta_agent, constraints)
-print(paths)
+# # 경로 탐색
+# paths = a_star_multi(my_map, start_locs, goal_locs, h_values, meta_agent, constraints)
+# print(paths)
 
 # --- 제약조건 생성기 함수 ---
 def make_constraints(meta_agents, options=None):

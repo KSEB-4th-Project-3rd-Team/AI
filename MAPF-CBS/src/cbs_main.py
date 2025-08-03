@@ -1,4 +1,7 @@
 import os
+os.makedirs(config.RESULTS_DIR, exist_ok=True)
+import sys
+sys.path.append(os.path.abspath("src")) 
 import random
 import numpy as np
 import time
@@ -52,16 +55,17 @@ def run_single_experiment(loop=0):
     path_lengths = [len(p) for p in paths] if paths else None
 
     # 파일명 자동화
-    fig_path = config.get_result_path(prefix="fig", ext=".png", loop=loop)
-    anim_path = config.get_result_path(prefix="anim", ext=".gif", loop=loop)
+    fig_path = config.get_result_path("fig", loop=loop)
+    anim_path = config.get_result_path("anim", loop=loop)
+    stat_path = config.get_result_path("stat", loop=loop)
 
-    # 시각화
+    # 시각화 (각각 저장)
     if config.SAVE_FIG:
         plot_map_with_paths(
             my_map, start_locs, goal_locs, paths,
             racks=racks,
             agent_names=config.AGENT_NAMES,
-            title=f"{config.EXPERIMENT_NAME} loop{loop}",
+            title=f"{config.EXP_NO}_epi{config.MAX_EPISODES}_ts{config.MAX_TIMESTEP}_loop{loop}",
             save_path=fig_path
         )
     if config.SAVE_ANIMATION:
@@ -69,13 +73,11 @@ def run_single_experiment(loop=0):
             my_map, paths,
             racks=racks,
             interval=config.ANIMATION_INTERVAL,
-            title=f"{config.EXPERIMENT_NAME} loop{loop}",
+            title=f"{config.EXP_NO}_epi{config.MAX_EPISODES}_ts{config.MAX_TIMESTEP}_loop{loop}",
             save_path=anim_path
         )
-
-    # 실험 결과 dict 리턴
+        
     result = {
-        "experiment_name": config.EXPERIMENT_NAME,
         "loop": loop,
         "algo_name": "AStar",  # or "CBS"
         "map_file": config.MAP_PATH,
@@ -94,21 +96,18 @@ def run_single_experiment(loop=0):
         "fig_file": fig_path,
         "animation_file": anim_path
     }
+    
+    pd.DataFrame([result]).to_csv(stat_path, index=False)
+    print(f"Loop {loop} 저장 완료: {stat_path}, {fig_path}, {anim_path}")
+
     return result
 
 def main():
     results = []
-    num_loops = 1  # 반복실험 조정값
-    for loop in range(num_loops):
+    for loop in range(config.NUM_LOOPS):
         print(f"\n========== 실험 loop {loop} ==========")
         result = run_single_experiment(loop=loop)
         results.append(result)
-
-    # DataFrame 저장 
-    df = pd.DataFrame(results)
-    csv_path = config.get_result_path(prefix="stat", ext=".csv")
-    df.to_csv(csv_path, index=False)
-    print(f"\n실험 결과 저장 완료: {csv_path}")
-
+        
 if __name__ == "__main__":
     main()

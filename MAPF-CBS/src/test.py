@@ -1,4 +1,4 @@
-from pathfinding.MapLoader import load_map_txt
+from pathfinding.MapLoader import load_map
 
 if __name__ == "__main__":
     map_path = "data/map.csv"   # 실제 파일 위치에 맞게 수정

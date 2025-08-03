@@ -20,7 +20,7 @@ def plot_map_with_paths(
     # 1. 맵, 장애물, 랙, 피킹존, 배경 그리기
     plt.figure(figsize=(8, 8))
     cmap = plt.get_cmap("Greys")
-    plt.imshow(my_map, cmap=cmap, origin='upper')
+    plt.imshow(my_map, cmap=cmap, origin='lower')
 
     # 장애물, 랙, 피킹존 등 오버레이
     if racks:
@@ -64,7 +64,7 @@ def plot_single_path(my_map, path, agent_idx=0, obstacles=None, racks=None, pick
     """
     plt.figure(figsize=(6,6))
     cmap = plt.get_cmap("Greys")
-    plt.imshow(my_map, cmap=cmap, origin='upper')
+    plt.imshow(my_map, cmap=cmap, origin='lower')
     color_cycle = plt.rcParams['axes.prop_cycle'].by_key()['color']
     ys, xs = zip(*path)
     plt.plot(xs, ys, marker='o', color=color_cycle[agent_idx % len(color_cycle)], linewidth=2)
@@ -121,10 +121,10 @@ def animate_paths(
     plt.show()
 
 
-from visualize import plot_map_with_paths, plot_single_path, animate_paths
-# 전체 경로와 충돌 한 번에 보기
-plot_map_with_paths(my_map, start_locs, goal_locs, paths, obstacles, racks, picking_zones, collisions)
-# agent 0번만 단독 분석
-plot_single_path(my_map, paths[0], agent_idx=0)
-# 애니메이션 생성 및 저장 / 주피터에선 interactivity/ipython.display
-animate_paths(my_map, paths, obstacles, racks, picking_zones, interval=300, save_path="mapf_sim.gif")
+
+# # 전체 경로와 충돌 한 번에 보기
+# plot_map_with_paths(my_map, start_locs, goal_locs, paths, obstacles, racks, picking_zones, collisions)
+# # agent 0번만 단독 분석
+# plot_single_path(my_map, paths[0], agent_idx=0)
+# # 애니메이션 생성 및 저장 / 주피터에선 interactivity/ipython.display
+# animate_paths(my_map, paths, obstacles, racks, picking_zones, interval=300, save_path="mapf_sim.gif")
