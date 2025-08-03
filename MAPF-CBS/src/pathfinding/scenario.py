@@ -1,3 +1,7 @@
+'''
+맵/DB/Task 로더, 에이전트 초기상태 및 시작/목표 지정 시나리오 함수 
+'''
+
 def single_agent_scenario(map_file="data/map.txt"):
     """
     맵 파일에서 출발/도착 위치 자동 추출(1대용)
