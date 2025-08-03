@@ -1,1 +1,0 @@
-def load_map, save_map, draw_map

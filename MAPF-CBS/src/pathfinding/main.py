@@ -1,8 +1,50 @@
-import time as timer
-import heapq
-import random
+import numpy as np
+from pathfinding.a_star import a_star_multi, multi_manhattan_heuristics
+from constraints import make_constraints, build_constraint_table
+from scenario import load_map, load_initial_tasks
+from visualize import plot_paths
 
-from a_star_class import A_Star, get_location, get_sum_of_cost, compute_heuristics
+def main():
+    # 1. 맵, 에이전트, task DB 세팅
+    my_map = load_map('warehouse_map.csv')     # CSV→2D array 파싱
+    meta_agents = list(range(8))
+    agent_tasks = load_initial_tasks('task_db.json')   # task DB, 실험마다 다르게도 가능
+
+    # 2. 각 에이전트별 첫 task (from→to) 뽑기
+    start_locs = [agent_tasks[a][0]['from'] for a in meta_agents]
+    goal_locs  = [agent_tasks[a][0]['to'] for a in meta_agents]
+
+    # 3. 휴리스틱 (맨해튼 or 다익스트라, 실험 목적에 맞게)
+    goals_dict = {a: goal_locs[i] for i, a in enumerate(meta_agents)}
+    h_values = multi_manhattan_heuristics(my_map, goals_dict)
+
+    # 4. 제약조건
+    constraints = make_constraints(meta_agents, options=None)    # options에 실험별 제약조건 룰을 넣을 수 있음
+    constraint_table = build_constraint_table(constraints, meta_agents)
+
+    # 5. 경로 탐색 실행
+    paths = a_star_multi(my_map, start_locs, goal_locs, h_values, meta_agents, constraints)
+    if paths is None:
+        print('No path found!')
+        return
+
+    print("Paths found for all agents:")
+    for i, path in enumerate(paths):
+        print(f"Agent {meta_agents[i]}: {path}")
+
+    # 6. 충돌 탐지 및 후처리(필요시 CBS 단계)
+    collisions = detect_collisions(paths)
+    print("Collisions:", collisions)
+    # 필요시 CBS, constraint splitting 등 추가 수행 가능
+
+    # 7. 시각화 (주피터/VSCode/웹 등)
+    plot_paths(my_map, start_locs, goal_locs, paths, collisions=collisions)
+
+    # 8. (선택) 여러 실험 반복 루프, 통계, RL 연동 등도 main에서 처리
+
+if __name__ == "__main__":
+    main()
+
 
 def detect_collision(path1, path2):
     ##############################
