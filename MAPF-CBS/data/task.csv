@@ -1,0 +1,5 @@
+﻿order_item_id,type,order_id,item_id,requested_quantity,processed_quantity,start_location_id,goal_location_id,start_y,start_x,goal_y,goal_x,rack_id,status,priority,assigned_agent
+1001,INBOUND,5001,12,10,0,200,301,2,3,8,14,C,WAIT,1,
+1002,OUTBOUND,6001,7,5,0,400,201,5,5,1,1,A,WAIT,2,
+1003,MOVE,,8,1,1,201,101,6,7,2,2,,WAIT,3,4
+1004,PICK,,15,2,0,120,130,1,4,7,9,B,WAIT,1,
