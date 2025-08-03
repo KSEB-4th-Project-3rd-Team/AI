@@ -13,7 +13,6 @@ real_height = 400_000
 
 # 그리드 수
 cols, rows = 102, 80
-
 cell_w = real_width / cols   # 1셀 가로(mm)
 cell_h = real_height / rows  # 1셀 세로(mm)
 
