@@ -1,340 +1,114 @@
+import os
+import random
 import numpy as np
-from pathfinding.a_star import a_star_multi, multi_manhattan_heuristics
-from constraints import make_constraints, build_constraint_table
-from scenario import load_map, load_initial_tasks
-from visualize import plot_paths
+import time
+import pandas as pd
+from config import config
+from pathfinding.MapLoader import load_map
+from pathfinding.Astar import (
+    multi_manhattan_heuristics,
+    Dijkstra_heuristics,
+    a_star_multi,
+    get_sum_of_cost
+)
+from pathfinding.visualize import (
+    plot_map_with_paths,
+    animate_paths
+)
+# (CBS 충돌감지)
+# from pathfinding.collision import detect_collisions
+
+# 랜덤 시드 고정 
+random.seed(config.RANDOM_SEED)
+np.random.seed(config.RANDOM_SEED)
+
+def run_single_experiment(loop=0):
+    my_map, start, goal, rack_list = load_map(config.MAP_PATH)
+    start_locs = [start] * config.N_AGENTS
+    goal_locs = [goal] * config.N_AGENTS
+    meta_agent = list(range(config.N_AGENTS))
+
+    # 휴리스틱 테이블 생성 (config 옵션으로 분기)
+    if config.HEURISTIC_TYPE == "manhattan":
+        goals_dict = {i: goal_locs[i] for i in meta_agent}
+        h_values = multi_manhattan_heuristics(my_map, goals_dict)
+    elif config.HEURISTIC_TYPE == "dijkstra":
+        h_values = {i: Dijkstra_heuristics(my_map, goal_locs[i]) for i in meta_agent}
+    else:
+        raise ValueError(f"Unknown heuristic type: {config.HEURISTIC_TYPE}")
+
+    constraints = getattr(config, "CONSTRAINTS", [])
+
+    t0 = time.time()
+    paths = a_star_multi(my_map, start_locs, goal_locs, h_values, meta_agent, constraints)
+    elapsed = time.time() - t0
+
+    racks = [rack["loc"] for rack in rack_list] if rack_list else None
+
+    # 충돌 정보 추출 (CBS)
+    # collisions = detect_collisions(paths) if paths else []
+    collisions = []
+    sum_cost = get_sum_of_cost(paths) if paths else None
+    path_lengths = [len(p) for p in paths] if paths else None
+
+    # 파일명 자동화
+    fig_path = config.get_result_path(prefix="fig", ext=".png", loop=loop)
+    anim_path = config.get_result_path(prefix="anim", ext=".gif", loop=loop)
+
+    # 시각화
+    if config.SAVE_FIG:
+        plot_map_with_paths(
+            my_map, start_locs, goal_locs, paths,
+            racks=racks,
+            agent_names=config.AGENT_NAMES,
+            title=f"{config.EXPERIMENT_NAME} loop{loop}",
+            save_path=fig_path
+        )
+    if config.SAVE_ANIMATION:
+        animate_paths(
+            my_map, paths,
+            racks=racks,
+            interval=config.ANIMATION_INTERVAL,
+            title=f"{config.EXPERIMENT_NAME} loop{loop}",
+            save_path=anim_path
+        )
+
+    # 실험 결과 dict 리턴
+    result = {
+        "experiment_name": config.EXPERIMENT_NAME,
+        "loop": loop,
+        "algo_name": "AStar",  # or "CBS"
+        "map_file": config.MAP_PATH,
+        "n_agents": config.N_AGENTS,
+        "agent_names": str(config.AGENT_NAMES),
+        "start_locs": str(start_locs),
+        "goal_locs": str(goal_locs),
+        "heuristic_type": config.HEURISTIC_TYPE,
+        "random_seed": config.RANDOM_SEED,
+        "success": paths is not None,
+        "sum_cost": sum_cost,
+        "avg_path_length": (sum(path_lengths)/len(path_lengths)) if path_lengths else None,
+        "cpu_time": elapsed,
+        "n_collisions": len(collisions),
+        "collisions": str(collisions),
+        "fig_file": fig_path,
+        "animation_file": anim_path
+    }
+    return result
 
 def main():
-    # 1. 맵, 에이전트, task DB 세팅
-    my_map = load_map('warehouse_map.csv')     # CSV→2D array 파싱
-    meta_agents = list(range(8))
-    agent_tasks = load_initial_tasks('task_db.json')   # task DB, 실험마다 다르게도 가능
+    results = []
+    num_loops = 1  # 반복실험 조정값
+    for loop in range(num_loops):
+        print(f"\n========== 실험 loop {loop} ==========")
+        result = run_single_experiment(loop=loop)
+        results.append(result)
 
-    # 2. 각 에이전트별 첫 task (from→to) 뽑기
-    start_locs = [agent_tasks[a][0]['from'] for a in meta_agents]
-    goal_locs  = [agent_tasks[a][0]['to'] for a in meta_agents]
-
-    # 3. 휴리스틱 (맨해튼 or 다익스트라, 실험 목적에 맞게)
-    goals_dict = {a: goal_locs[i] for i, a in enumerate(meta_agents)}
-    h_values = multi_manhattan_heuristics(my_map, goals_dict)
-
-    # 4. 제약조건
-    constraints = make_constraints(meta_agents, options=None)    # options에 실험별 제약조건 룰을 넣을 수 있음
-    constraint_table = build_constraint_table(constraints, meta_agents)
-
-    # 5. 경로 탐색 실행
-    paths = a_star_multi(my_map, start_locs, goal_locs, h_values, meta_agents, constraints)
-    if paths is None:
-        print('No path found!')
-        return
-
-    print("Paths found for all agents:")
-    for i, path in enumerate(paths):
-        print(f"Agent {meta_agents[i]}: {path}")
-
-    # 6. 충돌 탐지 및 후처리(필요시 CBS 단계)
-    collisions = detect_collisions(paths)
-    print("Collisions:", collisions)
-    # 필요시 CBS, constraint splitting 등 추가 수행 가능
-
-    # 7. 시각화 (주피터/VSCode/웹 등)
-    plot_paths(my_map, start_locs, goal_locs, paths, collisions=collisions)
-
-    # 8. (선택) 여러 실험 반복 루프, 통계, RL 연동 등도 main에서 처리
+    # DataFrame 저장 
+    df = pd.DataFrame(results)
+    csv_path = config.get_result_path(prefix="stat", ext=".csv")
+    df.to_csv(csv_path, index=False)
+    print(f"\n실험 결과 저장 완료: {csv_path}")
 
 if __name__ == "__main__":
     main()
-
-
-def detect_collision(path1, path2):
-    ##############################
-    # Task 3.1: Return the first collision that occurs between two robot paths (or None if there is no collision)
-    #           There are two types of collisions: vertex collision and edge collision.
-    #           A vertex collision occurs if both robots occupy the same location at the same timestep
-    #           An edge collision occurs if the robots swap their location at the same timestep.
-    #           You should use "get_location(path, t)" to get the location of a robot at time t.
-    t_range = max(len(path1),len(path2))
-    for t in range(t_range):
-        loc_c1 =get_location(path1,t)
-        loc_c2 = get_location(path2,t)
-        loc1 = get_location(path1,t+1)
-        loc2 = get_location(path2,t+1)
-        # vertex collision
-        if loc1 == loc2:
-            return [loc1],t
-        # edge collision
-        if[loc_c1,loc1] ==[loc2,loc_c2]:
-            return [loc2,loc_c2],t
-        
-       
-    return None
-
-
-def detect_collisions(paths):
-    ##############################
-    # Task 3.1: Return a list of first collisions between all robot pairs.
-    #           A collision can be represented as dictionary that contains the id of the two robots, the vertex or edge
-    #           causing the collision, and the timestep at which the collision occurred.
-    #           You should use your detect_collision function to find a collision between two robots.
-    collisions =[]
-    for i in range(len(paths)-1):
-        for j in range(i+1,len(paths)):
-            if detect_collision(paths[i],paths[j]) !=None:
-                position,t = detect_collision(paths[i],paths[j])
-                collisions.append({'a1':i,
-                                'a2':j,
-                                'loc':position,
-                                'timestep':t+1})
-    return collisions
-
-
-def standard_splitting(collision):
-    ##############################
-    # Task 3.2: Return a list of (two) constraints to resolve the given collision
-    #           Vertex collision: the first constraint prevents the first agent to be at the specified location at the
-    #                            specified timestep, and the second constraint prevents the second agent to be at the
-    #                            specified location at the specified timestep.
-    #           Edge collision: the first constraint prevents the first agent to traverse the specified edge at the
-    #                          specified timestep, and the second constraint prevents the second agent to traverse the
-    #                          specified edge at the specified timestep
-    constraints = []
-    if len(collision['loc'])==1:
-        constraints.append({'agent':collision['a1'],
-                            'loc':collision['loc'],
-                            'timestep':collision['timestep'],
-                            'positive':False
-                            })
-        constraints.append({'agent':collision['a2'],
-                            'loc':collision['loc'],
-                            'timestep':collision['timestep'],
-                            'positive':False
-                            })
-    else:
-        constraints.append({'agent':collision['a1'],
-                            'loc':[collision['loc'][0],collision['loc'][1]],
-                            'timestep':collision['timestep'],
-                            'positive':False
-                            })
-        constraints.append({'agent':collision['a2'],
-                            'loc':[collision['loc'][1],collision['loc'][0]],
-                            'timestep':collision['timestep'],
-                            'positive':False
-                            })
-    return constraints
-
-def disjoint_splitting(collision):
-    ##############################
-    # Task 4.1: Return a list of (two) constraints to resolve the given collision
-    #           Vertex collision: the first constraint enforces one agent to be at the specified location at the
-    #                            specified timestep, and the second constraint prevents the same agent to be at the
-    #                            same location at the timestep.
-    #           Edge collision: the first constraint enforces one agent to traverse the specified edge at the
-    #                          specified timestep, and the second constraint prevents the same agent to traverse the
-    #                          specified edge at the specified timestep
-    #           Choose the agent randomly
-    constraints = []
-    agent = random.randint(0,1)
-    a = 'a'+str(agent +1)
-    if len(collision['loc'])==1:
-        constraints.append({'agent':collision[a],
-                            'loc':collision['loc'],
-                            'timestep':collision['timestep'],
-                            'positive':True
-                            })
-        constraints.append({'agent':collision[a],
-                            'loc':collision['loc'],
-                            'timestep':collision['timestep'],
-                            'positive':False
-                            })
-    else:
-        if agent ==0:
-            constraints.append({'agent':collision[a],
-                                'loc':[collision['loc'][0],collision['loc'][1]],
-                                'timestep':collision['timestep'],
-                                'positive':True
-                                })
-            constraints.append({'agent':collision[a],
-                                'loc':[collision['loc'][0],collision['loc'][1]],
-                                'timestep':collision['timestep'],
-                                'positive':False
-                                })
-        else:
-            constraints.append({'agent':collision[a],
-                                'loc':[collision['loc'][1],collision['loc'][0]],
-                                'timestep':collision['timestep'],
-                                'positive':True
-                                })
-            constraints.append({'agent':collision[a],
-                                'loc':[collision['loc'][1],collision['loc'][0]],
-                                'timestep':collision['timestep'],
-                                'positive':False
-                                })
-    return constraints
-
-def paths_violate_constraint(constraint, paths):
-    assert constraint['positive'] is True
-    rst = []
-    for i in range(len(paths)):
-        if i == constraint['agent']:
-            continue
-        curr = get_location(paths[i], constraint['timestep'])
-        prev = get_location(paths[i], constraint['timestep'] - 1)
-        if len(constraint['loc']) == 1:  # vertex constraint
-            if constraint['loc'][0] == curr:
-                rst.append(i)
-        else:  # edge constraint
-            if constraint['loc'][0] == prev or constraint['loc'][1] == curr \
-                    or constraint['loc'] == [curr, prev]:
-                rst.append(i)
-    return rst
-
-
-class CBSSolver(object):
-    """The high-level search of CBS."""
-
-    def __init__(self, my_map, starts, goals):
-        """my_map   - list of lists specifying obstacle positions
-        starts      - [(x1, y1), (x2, y2), ...] list of start locations
-        goals       - [(x1, y1), (x2, y2), ...] list of goal locations
-        """
-
-        self.my_map = my_map
-        self.starts = starts
-        self.goals = goals
-        self.num_of_agents = len(goals)
-
-        self.num_of_generated = 0
-        self.num_of_expanded = 0
-        self.CPU_time = 0
-
-        self.open_list = []
-
-        # compute heuristics for the low-level search
-        self.heuristics = []
-        for goal in self.goals:
-            self.heuristics.append(compute_heuristics(my_map, goal))
-
-    def push_node(self, node):
-        heapq.heappush(self.open_list, (node['cost'], len(node['collisions']), self.num_of_generated, node))
-        # print("Generate node {}".format(self.num_of_generated))
-        self.num_of_generated += 1
-
-    def pop_node(self):
-        _, _, id, node = heapq.heappop(self.open_list)
-        print("Expand node {}".format(id))
-        self.num_of_expanded += 1
-        return node
-
-
-    def find_solution(self, disjoint):
-        """ Finds paths for all agents from their start locations to their goal locations
-
-        disjoint         - use disjoint splitting or not
-        """
-
-        self.start_time = timer.time()
-        
-        if disjoint:
-            splitter = disjoint_splitting
-        else:
-            splitter = standard_splitting
-
-        print("USING: ", splitter)
-
-        AStar = A_Star
-
-        # Generate the root node
-        # constraints   - list of constraints
-        # paths         - list of paths, one for each agent
-        #               [[(x11, y11), (x12, y12), ...], [(x21, y21), (x22, y22), ...], ...]
-        # collisions     - list of collisions in paths
-        root = {'cost': 0,
-                'constraints': [],
-                'paths': [],
-                'collisions': []}
-
-        for i in range(self.num_of_agents):  # Find initial path for each agent
-            astar = AStar(self.my_map, self.starts, self.goals, self.heuristics,i, root['constraints'])
-            path = astar.find_paths()
-
-            if path is None:
-                raise BaseException('No solutions')
-            root['paths'].append(path[0])
-
-        root['cost'] = get_sum_of_cost(root['paths'])
-        root['collisions'] = detect_collisions(root['paths'])
-        self.push_node(root)
-
-
-
-        ##############################
-        # Task 3.3: High-Level Search
-        #           Repeat the following as long as the open list is not empty:
-        #             1. Get the next node from the open list (you can use self.pop_node()
-        #             2. If this node has no collision, return solution
-        #             3. Otherwise, choose the first collision and convert to a list of constraints (using your
-        #                standard_splitting function). Add a new child node to your open list for each constraint
-        #           Ensure to create a copy of any objects that your child nodes might inherit
-        
-        while len(self.open_list) > 0:
-            # if self.num_of_generated > 50000:
-            #     print('reached maximum number of nodes. Returning...')
-            #     return None
-            p = self.pop_node()
-            if p['collisions'] == []:
-                self.print_results(p)
-                for pa in p['paths']:
-                    print(pa)
-                return p['paths'], self.num_of_generated, self.num_of_expanded # number of nodes generated/expanded for comparing implementations
-            collision = p['collisions'].pop(0)
-            # constraints = standard_splitting(collision)
-            # constraints = disjoint_splitting(collision)
-            constraints = splitter(collision)
-
-            for constraint in constraints:
-                q = {'cost':0,
-                    'constraints': [constraint],
-                    'paths':[],
-                    'collisions':[]
-                }
-                for c in p['constraints']:
-                    if c not in q['constraints']:
-                        q['constraints'].append(c)
-                for pa in p['paths']:
-                    q['paths'].append(pa)
-                
-                ai = constraint['agent']
-                astar = AStar(self.my_map,self.starts, self.goals,self.heuristics,ai,q['constraints'])
-                path = astar.find_paths()
-
-                if path is not None:
-                    q['paths'][ai]= path[0]
-                    # task 4
-                    continue_flag = False
-                    if constraint['positive']:
-                        vol = paths_violate_constraint(constraint,q['paths'])
-                        for v in vol:
-                            astar_v = AStar(self.my_map,self.starts, self.goals,self.heuristics,v,q['constraints'])
-                            path_v = astar_v.find_paths()
-                            if path_v  is None:
-                                continue_flag =True
-                            else:
-                                q['paths'][v] = path_v[0]
-                        if continue_flag:
-                            continue
-                    q['collisions'] = detect_collisions(q['paths'])
-                    q['cost'] = get_sum_of_cost(q['paths'])
-                    self.push_node(q)     
-        return None
-
-    def print_results(self, node):
-        print("\n Found a solution! \n")
-        CPU_time = timer.time() - self.start_time
-        print("CPU time (s):    {:.2f}".format(CPU_time))
-        print("Sum of costs:    {}".format(get_sum_of_cost(node['paths'])))
-        print("Expanded nodes:  {}".format(self.num_of_expanded))
-        print("Generated nodes: {}".format(self.num_of_generated))
-
-        print("Solution:")
-        for i in range(len(node['paths'])):
-            print("agent", i, ": ", node['paths'][i])
