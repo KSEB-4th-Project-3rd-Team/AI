@@ -1,3 +1,13 @@
+'''
+다익스트라 기반 휴리스틱 : 
+실제 맵상의 모든 장애물, 경로를 고려
+목표에서 모든 위치까지 '실제 최단 거리'를 미리 계산(A*에서 휴리스틱 테이블로 활용)
+맨해튼 기반 휴리스틱 : 
+대부분의 A*경로탐색에서 기본값으로 사용 -> 맵이 단순하거나 적을 때
+단점: 장애물로 인해 실제 경로가 훨씬 더 길 수도 있는데 이걸 반영하지 못함
+=> 1차 실험 -> 맨해튼
+최적화/성능 검증 후 다익스트라 기반 휴리스틱 추가
+'''
 import heapq
 from itertools import product
 import copy
@@ -5,22 +15,48 @@ import collections
 import time as timer
 import numpy as np
 
-# 좌표와 방향을 받아 이동한 위치 반환 (0:상, 1:우, 2:하, 3:좌, 4:제자리)
+# -------------- 1. 위치 이동-------------------
+# 1. 위치 이동 함수 (상하좌우+정지)
 def move(loc, dir):
+    """좌표(loc)에서 방향(dir: 0~4)으로 이동한 좌표 반환"""
     directions = [(0, -1), (1, 0), (0, 1), (-1, 0), (0, 0)]
     return loc[0] + directions[dir][0], loc[1] + directions[dir][1]
 
-# 전체 경로의 총 비용 계산 (길이의 합)
-def get_sum_of_cost(paths):
-    total = 0
-    for path in paths:
-        total += len(path) - 1
-        if len(path) > 1:
-            assert path[-1] != path[-2]
-    return total
+# -------------- 2. 휴리스틱 함수-------------------
 
-# 다익스트라로 목표지점에서부터 모든 위치까지 최소 비용 계산
-def compute_heuristics(my_map, goal):
+# 단일 에이전트 맨해튼 휴리스틱
+def manhattan_heuristics(my_map, goal):
+    """
+    각 위치에서 goal까지의 맨해튼 거리를 휴리스틱 값으로 갖는 딕셔너리 반환
+    """
+    h_values = {}
+    for i in range(len(my_map)):
+        for j in range(len(my_map[0])):
+            h = abs(goal[0] - i) + abs(goal[1] - j)
+            h_values[(i, j)] = h
+    return h_values
+
+# 멀티 에이전트 맨해튼 휴리스틱
+def multi_manhattan_heuristics(my_map, goals):
+    """
+    다중 agent의 각 goal에 대해 맨해튼 휴리스틱 테이블 생성
+    - goals: {agent_id: (y, x), ...}
+    - return: {agent_id: { (y, x): h, ... }, ...}
+    """
+    h_values = {}
+    for agent, goal in goals.items():
+        h_values[agent] = {}
+        for i in range(len(my_map)):
+            for j in range(len(my_map[0])):
+                h = abs(goal[0] - i) + abs(goal[1] - j)
+                h_values[agent][(i, j)] = h
+    return h_values
+
+# 다익스트라 휴리스틱
+def Dijkstra_heuristics(my_map, goal):
+    '''
+    다익스트라로 목표지점에서부터 모든 위치까지 최소 비용 계산
+    '''
     open_list = []
     closed_list = dict()
     root = {'loc': goal, 'cost': 0}
@@ -52,8 +88,10 @@ def compute_heuristics(my_map, goal):
     for loc, node in closed_list.items():
         h_values[loc] = node['cost']
     return h_values
+    
+# -------------- 3. 제약조건 관련 -------------------
 
-# 제약 리스트(Constraint)에서 시간별로 정리된 테이블 생성
+# 시간별로 정리된 constraint 테이블 생성
 def build_constraint_table(constraints, meta_agent):
     constraint_table = collections.defaultdict(list)
     if not constraints:
@@ -77,7 +115,9 @@ def build_constraint_table(constraints, meta_agent):
                 constraint_table[timestep].append(neg_constraint)
     return constraint_table
 
-# 경로에서 주어진 시간에 해당하는 위치 반환
+# -------------- 4. 경로/위치 추적 및 복원 -------------------
+
+# 경로에서 time에 따르는 위치 반환 
 def get_location(path, time):
     if time < 0:
         return path[0]
@@ -86,8 +126,12 @@ def get_location(path, time):
     else:
         return path[-1]  # 목표지점에서 대기
 
-# goal_node까지 거슬러 올라가 경로를 복원 (meta agent용)
+# goal_node까지 거슬러 올라가 경로복원(meta agent용 : 실글일때는 길이 1리스트/ 멀티일때는 길이 2이상 리스트로)
 def get_path(goal_node, meta_agent):
+    ''' 
+    탐색 트리의 goal_node에서 root까지 역추적하여, 각 agent의 경로 반환
+    - path: [ [loc0, loc1, ...], ... ]  (agent별)
+    '''
     path = [[] for _ in range(len(meta_agent))]
     curr = goal_node
     while curr is not None:
@@ -100,6 +144,8 @@ def get_path(goal_node, meta_agent):
         while len(path[i]) > 1 and path[i][-1] == path[i][-2]:
             path[i].pop()
     return path
+
+# -------------- 5. 제약조건 위반 -------------------
 
 # 해당 시간에 주어진 위치/이동이 외부 제약에 걸리는지 체크
 def is_constrained(curr_loc, next_loc, timestep, constraint_table, agent):
@@ -117,7 +163,7 @@ def is_constrained(curr_loc, next_loc, timestep, constraint_table, agent):
                     return True
     return False
 
-# 양성(필수) 제약을 어기는지 체크
+# 필수 제약을 어기는지 체크
 def violates_pos_constraint(curr_loc, next_loc, timestep, constraint_table, agent, meta_agent):
     if timestep not in constraint_table:
         return False
@@ -143,6 +189,8 @@ def future_constraint_exists(agent, meta_agent, agent_loc, timestep, constraint_
                         return True
     return False
 
+# -------------- 6. open list(우선순위큐) 관련 함수 -------------------
+
 # open_list에 노드 추가 (우선순위큐)
 def push_node(open_list, node):
     heapq.heappush(open_list, (node['g_val'] + node['h_val'], node['h_val'], node['loc'], node))
@@ -156,8 +204,21 @@ def pop_node(open_list):
 def compare_nodes(n1, n2):
     return n1['g_val'] + n1['h_val'] < n2['g_val'] + n2['h_val']
 
-# 다중 에이전트 A* (CBS/MA-CBS에서 사용)
-def a_star(my_map, start_locs, goal_loc, h_values, meta_agent, constraints):
+# ----------------- 7. 경로탐색 함수 ----------------
+
+#  단일 agent A*
+def a_star_single(my_map, start, goal, h_values, agent, constraints):
+    return a_star_multi(my_map, [start], [goal], {agent: h_values}, [agent], constraints)
+
+# 다중 에이전트 A* (a_star_single → a_star_multi 호출)
+'''
+싱글이 멀티를 호출함
+-> a_star_multi는 'N개의 에이전트'에 대해 경로탐색
+-> a_star_single은 '단 1개의 에이전트'에 대해서만 경로탐색
+a_star_multi를 'N=1'인 케이스로 바로 사용 가능
+=> multi 함수로 구현 / wrapping 함수는 에이전트 1대 경로탐색만 혹시, 필요한 경우를 위해
+'''
+def a_star_multi(my_map, start_locs, goal_loc, h_values, meta_agent, constraints):
     """
     my_map      - 장애물(1)/이동가능(0) 맵 (2차원 배열)
     start_locs  - 각 에이전트 시작 위치 (리스트)
@@ -166,7 +227,6 @@ def a_star(my_map, start_locs, goal_loc, h_values, meta_agent, constraints):
     meta_agent  - 현재 탐색하는 에이전트 집합
     constraints - 제약조건 리스트 (딕셔너리들)
     """
-
     open_list = []
     closed_list = dict()
     h_value = 0
@@ -296,3 +356,14 @@ def a_star(my_map, start_locs, goal_loc, h_values, meta_agent, constraints):
                 push_node(open_list, child)
     print('해결 불가')
     return None
+
+# -------------- 8. 경로 총 비용 계산 -------------------
+
+# 전체 경로의 총 비용 계산 (길이의 합)
+def get_sum_of_cost(paths):
+    total = 0
+    for path in paths:
+        total += len(path) - 1
+        if len(path) > 1:
+            assert path[-1] != path[-2]
+    return total
