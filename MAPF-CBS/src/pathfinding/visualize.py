@@ -77,19 +77,12 @@ def plot_single_path(my_map, path, agent_idx=0, obstacles=None, racks=None, pick
 def animate_paths(
         my_map, paths, obstacles=None, racks=None, picking_zones=None,
         interval=500, title='MAPF Animation', save_path=None):
-    """
-    - paths: list of [(y, x), ...] per agent
-    - interval: frame(ms)
-    - save_path: None, "animation.gif" 또는 "animation.mp4"
-    """
-    import matplotlib.pyplot as plt
-    import matplotlib.animation as animation
     color_cycle = plt.rcParams['axes.prop_cycle'].by_key()['color']
     max_t = max(len(p) for p in paths)
 
     fig, ax = plt.subplots(figsize=(8,8))
     cmap = plt.get_cmap("Greys")
-    ax.imshow(my_map, cmap=cmap, origin='upper')
+    ax.imshow(my_map, cmap=cmap, origin='lower')
 
     scatters = []
     for i, path in enumerate(paths):

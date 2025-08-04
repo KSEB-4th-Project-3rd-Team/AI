@@ -9,7 +9,7 @@ class Config:
         self.RESULTS_DIR = os.path.join(self.BASE_DIR, "results")
         self.MAP_PATH = os.path.join(self.DATA_DIR, "map.csv")
         self.ASSIGN_TASK_PATH = os.path.join(self.DATA_DIR, "assign_task.csv")
-        self.EXP_NO = "NO.1"
+        self.EXP_NO = "NO.2"
         self.FILE_TYPES = {
             "fig": ".png",
             "anim": ".gif",

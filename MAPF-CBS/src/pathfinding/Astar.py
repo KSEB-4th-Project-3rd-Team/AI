@@ -172,7 +172,12 @@ def compare_nodes(n1, n2):
 
 #  단일 agent A*
 def a_star_single(my_map, start, goal, h_values, agent, constraints):
-    return a_star_multi(my_map, [start], [goal], {agent: h_values}, [agent], constraints)
+    result = a_star_multi(my_map, [start], [goal], {agent: h_values}, [agent], constraints)
+    if result and isinstance(result[0], list):
+        return result[0]
+    else:
+        return result
+
 
 # 다중 에이전트 A* (a_star_single → a_star_multi 호출)
 '''
