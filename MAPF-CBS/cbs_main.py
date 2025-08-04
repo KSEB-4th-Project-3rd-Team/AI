@@ -66,16 +66,31 @@ def run_agent_sequential_tasks(agent_id=1, max_tasks=5, loop=0):
 
     # === 전체 path 연결 (중복 없이 1차원으로 평탄화) ===
     full_path = []
-    for i, p in enumerate(paths):
-        # p가 반드시 1차원 튜플 리스트여야 함!
-        if i == 0:
-            full_path.extend(p)
-        else:
-            full_path.extend(p[1:])
-    print(">>> DEBUG: paths type =", type(paths))
-    print(">>> DEBUG: paths[0] type =", type(paths[0]), "sample =", paths[0][:3])
-    print(">>> DEBUG: full_path type =", type(full_path))
-    print(">>> DEBUG: full_path[:3] =", full_path[:3])
+    curr_pos = (int(tasks.iloc[0]['start_y']), int(tasks.iloc[0]['start_x']))
+    
+    for idx, row in tasks.iterrows():
+        task_start = (int(row['start_y']), int(row['start_x']))
+        task_goal = (int(row['goal_y']), int(row['goal_x']))
+    
+        # (1) 업무 시작 전, 현재 위치에서 Task 시작점까지 이동 필요하면 경로 계산
+        if curr_pos != task_start:
+            path_to_start = a_star_single(my_map, curr_pos, task_start, h_values[0], 0, [])
+            if path_to_start:
+                # 중복점(이전 마지막점 == path_to_start 첫 점) 제거
+                if full_path and path_to_start[0] == full_path[-1]:
+                    full_path += path_to_start[1:]
+                else:
+                    full_path += path_to_start
+            curr_pos = task_start
+    
+        # (2) Task 본 업무 (start→goal)
+        task_path = a_star_single(my_map, curr_pos, task_goal, h_values[0], 0, [])
+        if task_path:
+            if full_path and task_path[0] == full_path[-1]:
+                full_path += task_path[1:]
+            else:
+                full_path += task_path
+            curr_pos = task_goal  # 다음 Task 연결점
 
     if config.SAVE_FIG:
         plot_map_with_paths(

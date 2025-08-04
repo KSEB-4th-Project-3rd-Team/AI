@@ -1,4 +1,5 @@
 import os
+import time
 import pandas as pd
 
 class Config:
@@ -9,7 +10,7 @@ class Config:
         self.RESULTS_DIR = os.path.join(self.BASE_DIR, "results")
         self.MAP_PATH = os.path.join(self.DATA_DIR, "map.csv")
         self.ASSIGN_TASK_PATH = os.path.join(self.DATA_DIR, "assign_task.csv")
-        self.EXP_NO = "NO.2"
+        self.EXP_NO = "NO.3"
         self.FILE_TYPES = {
             "fig": ".png",
             "anim": ".gif",
@@ -37,7 +38,7 @@ class Config:
         # 시각화/저장 옵션
         self.SAVE_FIG = True            # 경로 시각화 이미지 저장 여부
         self.SAVE_ANIMATION = True      # 경로 애니메이션 저장 여부
-        self.ANIMATION_INTERVAL = 300   # 애니메이션 프레임 간격(ms)
+        self.ANIMATION_INTERVAL = 20   # 애니메이션 프레임 간격(ms)
         self.SHOW_COLLISIONS = True     # 충돌 표시 여부
         self.FIG_DPI = 150              # 그림 저장시 해상도
 
@@ -83,21 +84,32 @@ class Config:
             goals.append((int(first_task['goal_y']), int(first_task['goal_x'])))
         return n_agents, agent_names, starts, goals
 
-    def get_exp_folder(self, loop=None):
-        folder = f"{self.EXP_NO}_epi{self.MAX_EPISODES}_ts{self.MAX_TIMESTEP}_loops{self.NUM_LOOPS}"
-        if loop is not None:
-            folder += f"_loop{loop}"
+    def get_exp_folder(self, agent_num=None, max_tasks=None):
+        """
+        저장 폴더명: 예) NO.3_agent2_maxT10_20240806/
+        """
+        parts = [self.EXP_NO]
+        parts.append(f"agent{agent_num or self.N_AGENTS}")
+        if max_tasks is not None:
+            parts.append(f"maxT{max_tasks}")
+        parts.append(time.strftime("%Y%m%d"))
+        folder = "_".join(parts)
         path = os.path.join(self.RESULTS_DIR, folder)
         os.makedirs(path, exist_ok=True)
         return path
 
-    def get_result_path(self, kind, loop=None):
+    def get_result_path(self, kind, agent_num=None, max_tasks=None, extra=None):
+        """
+        저장 파일명: stat_agent2_maxT10.csv
+        """
         ext = self.FILE_TYPES[kind]
-        exp_dir = self.get_exp_folder(loop)
-        fname = f"{kind}_epi{self.MAX_EPISODES}_ts{self.MAX_TIMESTEP}_loops{self.NUM_LOOPS}"
-        if loop is not None:
-            fname += f"_loop{loop}"
-        fname += ext
+        exp_dir = self.get_exp_folder(agent_num, max_tasks)
+        fname_parts = [kind, f"agent{ self.N_AGENTS}"]
+        if max_tasks is not None:
+            fname_parts.append(f"maxT{max_tasks}")
+        if extra:
+            fname_parts.append(str(extra))
+        fname = "_".join(fname_parts) + ext
         return os.path.join(exp_dir, fname)
 
 config = Config()
