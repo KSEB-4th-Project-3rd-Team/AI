@@ -29,8 +29,8 @@ def load_map(csv_path):
     return warehouse_map, start, goal, rack_list
 
 # --- 출력 확인용 ---
-my_map, start, goal, rack_list = load_map("C:/Users/sj123/WMSProject/AI/MAPF-CBS/data/map.csv")
-print("맵:", my_map)
-print("출발:", start)
-print("도착:", goal)
-print("랙:", rack_list)
+# my_map, start, goal, rack_list = load_map("C:/Users/sj123/WMSProject/AI/MAPF-CBS/data/map.csv")
+# print("맵:", my_map)
+# print("출발:", start)
+# print("도착:", goal)
+# print("랙:", rack_list)
