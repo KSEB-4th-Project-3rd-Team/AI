@@ -1,4 +1,5 @@
 import os
+import pandas as pd
 
 class Config:
     def __init__(self):
@@ -7,6 +8,7 @@ class Config:
         self.DATA_DIR = os.path.join(self.BASE_DIR, "data")
         self.RESULTS_DIR = os.path.join(self.BASE_DIR, "results")
         self.MAP_PATH = os.path.join(self.DATA_DIR, "map.csv")
+        self.ASSIGN_TASK_PATH = os.path.join(self.DATA_DIR, "assign_task.csv")
         self.EXP_NO = "NO.1"
         self.FILE_TYPES = {
             "fig": ".png",
@@ -24,6 +26,13 @@ class Config:
         self.MAX_EPISODES = 100
         self.MAX_TIMESTEP = 200
         self.RANDOM_SEED = 42
+
+        self.AGENT_ASSIGN_MODE = "auto"   # "auto"면 assign_task.csv로 자동 결정/ ( "single" / "multi")
+        self.N_AGENTS = None              # assign_task.csv에서 자동 결정 (None이면)
+        self.AGENT_NAMES = None           # 자동 결정 (None이면)
+
+        # splitting 정책 (policy=standard)
+        self.CONFLICT_RESOLUTION_POLICY = "standard" 
 
         # 시각화/저장 옵션
         self.SAVE_FIG = True            # 경로 시각화 이미지 저장 여부
@@ -48,6 +57,31 @@ class Config:
         #         # "task_file": self.TASK_PATH
         #     },
         # ]
+
+    def get_tasks_for_agent(self, agent_id, max_tasks=5, status_filter='WAIT'):
+        '''
+        agent_id: 에이전트 번호 (ex. 1)
+        max_tasks: 최대 미션 개수 (ex. 5)
+        status_filter: (기본 'WAIT' 미션만)
+        '''
+        df = pd.read_csv(self.ASSIGN_TASK_PATH)
+        # assigned_agent가 agent_id이고 status가 'WAIT'인 것만
+        tasks = df[(df['assigned_agent'] == agent_id) & (df['status'] == status_filter)]
+        # 오더 순/우선순위 순서대로 최대 max_tasks개만
+        tasks = tasks.sort_values(by=["order_item_id", "priority"]).head(max_tasks)
+        return tasks
+
+    def get_agents_and_tasks(self):
+        mission_df = pd.read_csv(self.ASSIGN_TASK_PATH)
+        agent_ids = sorted(mission_df['assigned_agent'].dropna().unique())
+        n_agents = len(agent_ids)
+        agent_names = [f"AGV_{i+1}" for i in range(n_agents)]
+        starts, goals = [], []
+        for agent_id in agent_ids:
+            first_task = mission_df[mission_df['assigned_agent'] == agent_id].iloc[0]
+            starts.append((int(first_task['start_y']), int(first_task['start_x'])))
+            goals.append((int(first_task['goal_y']), int(first_task['goal_x'])))
+        return n_agents, agent_names, starts, goals
 
     def get_exp_folder(self, loop=None):
         folder = f"{self.EXP_NO}_epi{self.MAX_EPISODES}_ts{self.MAX_TIMESTEP}_loops{self.NUM_LOOPS}"
