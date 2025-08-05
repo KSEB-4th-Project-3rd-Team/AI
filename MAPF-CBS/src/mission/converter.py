@@ -1,64 +1,94 @@
-"""
-Task DB의 rack_id, map.csv의 I/O를 활용해
-start_y, start_x, goal_y, goal_x 좌표를 자동으로 채우는 변환 스크립트
-(입고/출고/피킹 등 type별 분기도 지원)
-"""
-import csv
 import pandas as pd
+import random
+import csv
 
-# ---- 1. 랙 id → (y, x) 좌표 매핑테이블 생성 (A~T, 001~012) ----
-rack_letters = [chr(ord('A') + i) for i in range(20)]    # 'A'~'T'
-rack_numbers = [f"{j:03d}" for j in range(1, 13)]        # '001'~'012'
-
-rack_coords = {f"{row}{col}": (y, x)
-               for x, row in enumerate(rack_letters)
-               for y, col in enumerate(rack_numbers)
-}
-
-# ---- 2. map.csv에서 I(출발), O(도착) 좌표 추출 ----
-def get_IO_from_map(filepath):
-    start, goal = None, None
+# --- map.csv에서 zone별 좌표 추출 ---
+def parse_zones(filepath):
+    """
+    map.csv에서 'I'(입고 zone), 'O'(출고 zone), '.', '@' 좌표 집합 추출
+    return: dict{'I': [...], 'O': [...], '.': [...], '@': [...]}
+    """
+    import csv
+    symbol_locs = {'I': [], 'O': [], '@': [], '.' : []}
     with open(filepath, 'r', encoding='utf-8') as f:
-        reader = csv.reader(f)
-        for i, row in enumerate(reader):
-            for j, c in enumerate(row):
+        for y, row in enumerate(csv.reader(f)):
+            for x, c in enumerate(row):
                 c = c.strip()
-                if c == 'I':
-                    start = (i, j)
-                elif c == 'O':
-                    goal = (i, j)
-    return start, goal
+                if c in symbol_locs:
+                    symbol_locs[c].append((y, x))
+    return symbol_locs
 
-start, goal = get_IO_from_map('data/map.csv')
-print("Start:", start, "Goal:", goal)
+# 1. zone 추출
+zones = parse_zones("data/map.csv")
+i_zone = zones['I']
+o_zone = zones['O']
+free_zone = zones['.']
 
-# ---- 3. task.csv 불러오기 ----
-df = pd.read_csv('data/missions.csv')
-
-# ---- 4. type별 좌표 자동 변환 (INBOUND, OUTBOUND, PICK, MOVE) ----
+# 2. 미션별 좌표 변환 (여기서 타입별 로직 모두 적용)
+df = pd.read_csv("data/missions.csv")
+i_idx, o_idx = 0, 0  # 라운드로빈 인덱스(원하면 zone별 별도 관리 가능)
 for idx, row in df.iterrows():
     t = row['type']
-    rack_y, rack_x = rack_coords.get(row['rack_id'], (None, None))
+    # INBOUND, PICK: start in I zone, goal in 랙/빈칸
     if t in ('INBOUND', 'PICK'):
-        # 입고/피킹: 출발(I), 도착(랙)
-        df.at[idx, 'start_y'], df.at[idx, 'start_x'] = start
-        df.at[idx, 'goal_y'], df.at[idx, 'goal_x'] = rack_y, rack_x
+        # start: I zone 내 임의 좌표
+        start_y, start_x = random.choice(i_zone)  # 또는 i_zone[i_idx % len(i_zone)]
+        # goal: 임의의 랙 or free_zone
+        goal_y, goal_x = random.choice(free_zone)
+    # OUTBOUND, DROP: start in 랙/빈칸, goal in O zone
     elif t in ('OUTBOUND', 'DROP'):
-        # 출고/하차: 출발(랙), 도착(O)
-        df.at[idx, 'start_y'], df.at[idx, 'start_x'] = rack_y, rack_x
-        df.at[idx, 'goal_y'], df.at[idx, 'goal_x'] = goal
+        start_y, start_x = random.choice(free_zone)
+        goal_y, goal_x = random.choice(o_zone)    # 또는 o_zone[o_idx % len(o_zone)]
+    # MOVE: 임의 빈칸끼리
     elif t == 'MOVE':
-        # MOVE: (랜덤 랙 -> 랜덤 랙) 예시
-        import random
-        other_rack = random.choice(list(rack_coords.keys()))
-        goal_y, goal_x = rack_coords.get(other_rack, (None, None))
-        df.at[idx, 'start_y'], df.at[idx, 'start_x'] = rack_y, rack_x
-        df.at[idx, 'goal_y'], df.at[idx, 'goal_x'] = goal_y, goal_x
+        points = random.sample(free_zone, 2)
+        start_y, start_x = points[0]
+        goal_y, goal_x = points[1]
+    # 기타: I zone → O zone
     else:
-        # 예외: 모두 I->O로 처리 (테스트용)
-        df.at[idx, 'start_y'], df.at[idx, 'start_x'] = start
-        df.at[idx, 'goal_y'], df.at[idx, 'goal_x'] = goal
+        start_y, start_x = random.choice(i_zone)
+        goal_y, goal_x = random.choice(o_zone)
 
-# ---- 5. 저장 ----
-df.to_csv('data/assign_task.csv', index=False)
-print("좌표 치환 완료! -> data/assign_task.csv")
+    df.at[idx, 'start_y'] = start_y
+    df.at[idx, 'start_x'] = start_x
+    df.at[idx, 'goal_y'] = goal_y
+    df.at[idx, 'goal_x'] = goal_x
+
+    # 라운드로빈 인덱스 증가 (원하면)
+    # i_idx += 1; o_idx += 1
+
+    print(f"[DEBUG] idx={idx} type={t} start=({start_y},{start_x}) goal=({goal_y},{goal_x})")
+
+df.to_csv("data/assign_task.csv", index=False)
+print("좌표 집합 기반 변환 완료 → data/assign_task.csv")
+# ------------------------------
+
+# map.csv를 2차원 배열로 읽어와서 좌표 유효성 체크
+def load_map_array(filepath):
+    arr = []
+    with open(filepath, 'r', encoding='utf-8') as f:
+        for row in csv.reader(f):
+            arr.append([c.strip() for c in row])
+    return arr
+
+map_arr = load_map_array('data/map.csv')
+height, width = len(map_arr), len(map_arr[0])
+print(f"map shape: {height}x{width}")
+
+# 좌표 범위 + cell 값 검증
+def is_valid_coord(y, x, arr, allowed_symbols=('.', 'I', 'O')):
+    h, w = len(arr), len(arr[0])
+    if not (0 <= y < h and 0 <= x < w):
+        return False
+    if arr[y][x] not in allowed_symbols:
+        return False
+    return True
+# assign_task.csv 저장 전, 좌표 전수검증
+for idx, row in df.iterrows():
+    sy, sx = int(row['start_y']), int(row['start_x'])
+    gy, gx = int(row['goal_y']), int(row['goal_x'])
+
+    if not is_valid_coord(sy, sx, map_arr):
+        print(f"[경고] idx={idx} start ({sy},{sx}) 가 유효하지 않은 칸! map={map_arr[sy][sx]}")
+    if not is_valid_coord(gy, gx, map_arr):
+        print(f"[경고] idx={idx} goal ({gy},{gx}) 가 유효하지 않은 칸! map={map_arr[gy][gx]}")

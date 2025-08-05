@@ -82,14 +82,17 @@ class Config:
             first_task = mission_df[mission_df['assigned_agent'] == agent_id].iloc[0]
             starts.append((int(first_task['start_y']), int(first_task['start_x'])))
             goals.append((int(first_task['goal_y']), int(first_task['goal_x'])))
+        # 여기서 self.N_AGENTS 업데이트
+        self.N_AGENTS = n_agents
+        self.AGENT_NAMES = agent_names
         return n_agents, agent_names, starts, goals
 
-    def get_exp_folder(self, agent_num=None, max_tasks=None):
+    def get_exp_folder(self, agent_num, max_tasks=None):
         """
         저장 폴더명: 예) NO.3_agent2_maxT10_20240806/
         """
         parts = [self.EXP_NO]
-        parts.append(f"agent{agent_num or self.N_AGENTS}")
+        parts.append(f"agent{self.N_AGENTS}")
         if max_tasks is not None:
             parts.append(f"maxT{max_tasks}")
         parts.append(time.strftime("%Y%m%d"))
@@ -104,7 +107,7 @@ class Config:
         """
         ext = self.FILE_TYPES[kind]
         exp_dir = self.get_exp_folder(agent_num, max_tasks)
-        fname_parts = [kind, f"agent{ self.N_AGENTS}"]
+        fname_parts = [kind, f"agent{self.N_AGENTS}"]
         if max_tasks is not None:
             fname_parts.append(f"maxT{max_tasks}")
         if extra:
