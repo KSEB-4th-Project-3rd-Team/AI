@@ -92,3 +92,10 @@ for idx, row in df.iterrows():
         print(f"[경고] idx={idx} start ({sy},{sx}) 가 유효하지 않은 칸! map={map_arr[sy][sx]}")
     if not is_valid_coord(gy, gx, map_arr):
         print(f"[경고] idx={idx} goal ({gy},{gx}) 가 유효하지 않은 칸! map={map_arr[gy][gx]}")
+
+arr = []
+with open("data/map.csv", "r", encoding="utf-8") as f:
+    for row in csv.reader(f):
+        arr.append([c.strip() for c in row])
+for y, row in enumerate(arr):
+    print(f"{y:02d}: {''.join(row)}")
