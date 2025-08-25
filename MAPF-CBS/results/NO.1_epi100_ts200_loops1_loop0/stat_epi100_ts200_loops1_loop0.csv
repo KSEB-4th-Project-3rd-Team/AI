@@ -1,0 +1,2 @@
+loop,algo_name,map_file,n_agents,agent_names,start_locs,goal_locs,heuristic_type,random_seed,success,sum_cost,avg_path_length,cpu_time,n_collisions,collisions,fig_file,animation_file
+0,AStar,C:\Users\sj123\WMSProject\AI\MAPF-CBS\data\map.csv,1,['AGV_1'],"[(79, 93)]","[(79, 42)]",manhattan,42,True,53,54.0,0.0039997100830078125,0,[],C:\Users\sj123\WMSProject\AI\MAPF-CBS\results\NO.1_epi100_ts200_loops1_loop0\fig_epi100_ts200_loops1_loop0.png,C:\Users\sj123\WMSProject\AI\MAPF-CBS\results\NO.1_epi100_ts200_loops1_loop0\anim_epi100_ts200_loops1_loop0.gif
