@@ -1,0 +1,2 @@
+﻿item,order_date_p50,order_date_p90,arrival_date,stockout_date,pred_lead_at_stockout,init_inventory,safety_stock
+Kinergy EX,2025-09-03,2025-09-02,2025-09-09,2025-09-09,6,647,323
