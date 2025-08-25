@@ -14,11 +14,11 @@ import copy
 import collections
 import time as timer
 import numpy as np
-from pathfinding.constraints import (
+from .constraints import (
     is_constrained,
     violates_pos_constraint,
     future_constraint_exists,
-    build_constraint_table
+    build_constraint_table,
 )
 # -------------- 1. 위치 이동-------------------
 # 1. 위치 이동 함수 (상하좌우+정지)
@@ -177,8 +177,10 @@ def a_star_single(my_map, start, goal, h_values, agent, constraints):
         return result[0]
     else:
         return result
-
-
+    '''
+    a_star_single 함수에서 a_star_multi를 호출할 때,
+    h_values와 start_locs 리스트의 인덱스가 에이전트 ID와 일치하지 않으면 IndexError
+    '''
 # 다중 에이전트 A* (a_star_single → a_star_multi 호출)
 '''
 싱글이 멀티를 호출함

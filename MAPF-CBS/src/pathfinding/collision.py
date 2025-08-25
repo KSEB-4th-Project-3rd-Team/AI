@@ -1,3 +1,8 @@
+from .astar import get_location  # detect_collision에서 사용
+import time as timer
+import heapq
+import random
+
 # --- CBS에서 경로간 충돌 판별 ---
 def detect_collision(path1, path2):
     '''

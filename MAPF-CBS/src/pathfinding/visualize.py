@@ -140,3 +140,76 @@ def animate_paths(
 # plot_single_path(my_map, paths[0], agent_idx=0)
 # # 애니메이션 생성 및 저장 / 주피터에선 interactivity/ipython.display
 # animate_paths(my_map, paths, obstacles, racks, picking_zones, interval=300, save_path="mapf_sim.gif")
+
+def plot_multi_paths(my_map, paths, starts=None, goals=None, racks=None,
+                     title='CBS Batch Paths', save_path=None,
+                     agent_marker_size=6, agent_line_width=1.2, rack_alpha=0.25):
+    plt.figure(figsize=(8,8))
+    ax = plt.gca()
+    ax.imshow(my_map, cmap='Greys', origin='lower')
+
+    if racks:
+        ys, xs = zip(*racks)
+        ax.scatter(xs, ys, c='blue', marker='s', s=80, alpha=rack_alpha, label='Rack')
+
+    colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
+    for i, p in enumerate(paths):
+        if not p: 
+            continue
+        ys, xs = zip(*p)
+        steps = len(p)                     # 길이 자동 계산
+        c = colors[i % len(colors)]
+        lbl = f'AGV{i} ({steps} steps)'    # 범례에 steps 표시
+        ax.plot(xs, ys, '-', linewidth=agent_line_width, color=c, label=lbl)
+        ax.scatter([xs[0]], [ys[0]], s=50, marker='s', color=c)
+        ax.scatter([xs[-1]], [ys[-1]], s=60, marker='*', color=c)
+        ax.text(xs[-1]+0.3, ys[-1]+0.3, f'{steps}', color=c, fontsize=8)  # 골 근처 텍스트
+
+    ax.set_title(title)
+    ax.legend(fontsize=8, loc='upper right')
+    ax.invert_yaxis()
+    plt.tight_layout()
+    if save_path:
+        plt.savefig(save_path, dpi=150)
+    plt.close()
+
+def animate_multi_paths(my_map, paths, interval=80, title='CBS Batch Animation',
+                        save_path=None, agent_marker_size=6, agent_line_width=1.2):
+    fig, ax = plt.subplots(figsize=(8,8))
+    ax.imshow(my_map, cmap='Greys', origin='lower')
+
+    colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
+    maxT = max(len(p) for p in paths if p)
+    lines, heads = [], []
+
+    # 범례에 steps 넣기
+    for i, p in enumerate(paths):
+        c = colors[i % len(colors)]
+        steps = len(p) if p else 0
+        label = f'AGV{i} ({steps} steps)'
+        line, = ax.plot([], [], '-', linewidth=agent_line_width, color=c, label=label)
+        head = ax.scatter([], [], s=agent_marker_size*5, marker='o', color=c)
+        lines.append(line); heads.append(head)
+
+    ax.legend(fontsize=8, loc='upper right')
+    ax.set_title(title)
+    ax.invert_yaxis()
+    plt.tight_layout()
+
+    def frame(t):
+        for i, p in enumerate(paths):
+            if not p: 
+                continue
+            tt = min(t, len(p)-1)
+            ys, xs = zip(*p[:tt+1])
+            lines[i].set_data(xs, ys)
+            heads[i].set_offsets([[xs[-1], ys[-1]]])
+        return lines + heads
+
+    ani = animation.FuncAnimation(fig, frame, frames=maxT, interval=interval, blit=False, repeat=False)
+    if save_path:
+        if save_path.endswith(".gif"):
+            ani.save(save_path, writer='pillow')
+        else:
+            ani.save(save_path, writer='ffmpeg')
+    plt.close()
